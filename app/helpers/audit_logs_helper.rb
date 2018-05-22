@@ -1,5 +1,5 @@
-module PostsHelper
-	
+module AuditLogsHelper
+
 	def status_label status
 		status_span_generator status
 	end
@@ -8,12 +8,10 @@ module PostsHelper
 
 	def status_label status
 		case status
-		when 'submitted'
+		when 'pending'
 			content_tag(:span, status.titleize, class: 'label label-primary')
-		when 'approved'
+		when 'confirmed'
 			content_tag(:span, status.titleize, class: 'label label-success')
-		when 'rejected'
-			content_tag(:span, status.titleize, class: 'label label-danger')
 		end
 	end
 end

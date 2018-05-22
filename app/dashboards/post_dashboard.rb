@@ -8,13 +8,14 @@ class PostDashboard < Administrate::BaseDashboard
   # which determines how the attribute is displayed
   # on pages throughout the dashboard.
   ATTRIBUTE_TYPES = {
-    user: Field::BelongsTo,
-    id: Field::Number,
-    date: Field::DateTime,
-    rationale: Field::String,
-    text: Field::String,
-    created_at: Field::DateTime,
-    updated_at: Field::DateTime,
+    user: Field::BelongsTo.with_options(searchable: false),
+    id: Field::Number.with_options(searchable: false),
+    date: Field::DateTime.with_options(searchable: false),
+    rationale: Field::String.with_options(searchable: true),
+    text: Field::String.with_options(searchable: false),
+    created_at: Field::DateTime.with_options(searchable: false),
+    updated_at: Field::DateTime.with_options(searchable: false),
+    status: Field::Text.with_options(searchable: false)
   }.freeze
 
   # COLLECTION_ATTRIBUTES
@@ -27,6 +28,7 @@ class PostDashboard < Administrate::BaseDashboard
     :id,
     :date,
     :rationale,
+    :status
   ].freeze
 
   # SHOW_PAGE_ATTRIBUTES
@@ -39,6 +41,7 @@ class PostDashboard < Administrate::BaseDashboard
     :text,
     :created_at,
     :updated_at,
+    :status
   ].freeze
 
   # FORM_ATTRIBUTES
@@ -48,7 +51,7 @@ class PostDashboard < Administrate::BaseDashboard
     :user,
     :date,
     :rationale,
-    :text,
+    :text
   ].freeze
 
   # Overwrite this method to customize how posts are displayed

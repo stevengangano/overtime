@@ -11,15 +11,28 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20180426201839) do
+ActiveRecord::Schema.define(version: 20180519011932) do
+
+  create_table "audit_logs", force: :cascade do |t|
+    t.integer  "user_id"
+    t.integer  "status",     default: 0
+    t.date     "start_date"
+    t.date     "end_date"
+    t.datetime "created_at",             null: false
+    t.datetime "updated_at",             null: false
+  end
+
+  add_index "audit_logs", ["user_id"], name: "index_audit_logs_on_user_id"
 
   create_table "posts", force: :cascade do |t|
     t.date     "date"
     t.string   "rationale"
     t.string   "text"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at",                     null: false
+    t.datetime "updated_at",                     null: false
     t.integer  "user_id"
+    t.integer  "status",           default: 0
+    t.decimal  "overtime_request", default: 0.0
   end
 
   create_table "users", force: :cascade do |t|
@@ -38,6 +51,7 @@ ActiveRecord::Schema.define(version: 20180426201839) do
     t.string   "type"
     t.datetime "created_at",                          null: false
     t.datetime "updated_at",                          null: false
+    t.string   "phone"
   end
 
   add_index "users", ["email"], name: "index_users_on_email", unique: true

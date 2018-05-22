@@ -2,6 +2,7 @@
 	<h1>Time Tracker</h1>
 </div>
 
+<% if current_user %>
 <ul class="custom-nav nav nav-tabs">
 	<li class="<%= active?(root_path) %>">
 		<%= link_to "Home", root_path %>
@@ -9,16 +10,23 @@
 	<li class="<%= active?(posts_path) %>">
 		<%= link_to "Time Entries", posts_path %>
 	</li>
-  <li class="<%= active?(new_post_path) %>">
-    <%= link_to "Add new entry", new_post_path %>
-  </li>
+	<% if policy(AuditLog).index? %>
+	<li class="<%= active?(audit_logs_path) %>">
+		<%= link_to "Audit Log", audit_logs_path %>
+	</li>
+	<% end %>
+    <li class="<%= active?(new_post_path) %>">
+    	<%= link_to "Add new entry", new_post_path %>
+    </li>
 	<li class="dropdown pull-right">
-		 <a href="#" data-toggle="dropdown" class="dropdown-toggle">Account<strong class="caret"></strong></a>
+		 <a href="#" data-toggle="dropdown" class="dropdown-toggle">Options<strong class="caret"></strong></a>
 		<ul class="dropdown-menu">
+			<% if current_user.type == "AdminUser" %>
 			<li>
-				<%= link_to "TODO: ADMIN DASHBOARD", root_path %>
+				<%= link_to "ADMIN DASHBOARD", admin_root_path %>
 			</li>
 			<li class="divider">
+			<% end %>
 			</li>
 			<li>
 				<%= link_to "Logout", destroy_user_session_path, method: :delete %>
@@ -26,3 +34,4 @@
 		</ul>
 	</li>
 </ul>
+<% end %>

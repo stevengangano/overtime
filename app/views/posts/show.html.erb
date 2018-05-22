@@ -1,1 +1,23 @@
 <%= @post.inspect %>
+
+<div class="well">
+	<div>
+		<h2><span> Rationale:</span> <%= @post.rationale %> </h2>
+	</div>
+
+	<div>
+		<h3> <span> Overtime Amount Request: </span> <%= @post.overtime_request %> </h3>
+	</div>
+
+	<div>
+		<h3><span> Date: </span><%= @post.date %> </h3>
+	</div>
+
+	<div>
+		<h3> <span> Employee:  </span> <%= @post.user.first_name + ' ' + @post.user.last_name %> </h3>
+	</div>
+</div>
+
+<td>
+  <%= link_to 'Edit', edit_post_path(@post), class:'glyphicon glyphicon-pencil' if @post.status != 'approved' %>
+</td>

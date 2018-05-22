@@ -18,6 +18,10 @@ gem 'devise', '~> 4.4', '>= 4.4.3'
 gem 'bootstrap-sass', '~> 3.3', '>= 3.3.6'
 gem "administrate", "~> 0.2.2"
 gem 'bourbon'
+gem 'pundit', '~> 1.1'
+gem 'puma', '~> 3.11', '>= 3.11.4'
+gem 'dotenv-rails', :groups => [:development, :test]
+gem 'twilio-ruby', '~> 5.10'
 
 
 # Use jquery as the JavaScript library
