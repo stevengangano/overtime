@@ -16,7 +16,7 @@
 	</li>
 	<% end %>
     <li class="<%= active?(new_post_path) %>">
-    	<%= link_to "Add new entry", new_post_path %>
+    	<%= link_to "Request Overtime", new_post_path %>
     </li>
 	<li class="dropdown pull-right">
 		 <a href="#" data-toggle="dropdown" class="dropdown-toggle">Options<strong class="caret"></strong></a>
@@ -25,6 +25,8 @@
 			<li>
 				<%= link_to "ADMIN DASHBOARD", admin_root_path %>
 			</li>
+			<% else %>
+				<%= 'Welcome' + '  ' + current_user.first_name + ' ' + current_user.last_name %>
 			<li class="divider">
 			<% end %>
 			</li>

@@ -22,7 +22,7 @@ gem 'pundit', '~> 1.1'
 gem 'puma', '~> 3.11', '>= 3.11.4'
 gem 'dotenv-rails', :groups => [:development, :test]
 gem 'twilio-ruby', '~> 5.10'
-
+gem 'kaminari', '~> 0.16.3'
 
 # Use jquery as the JavaScript library
 gem 'jquery-rails', '~> 4.1', '>= 4.1.1'
@@ -51,7 +51,6 @@ group :development, :test do
   gem 'rspec-rails', '~> 3.0'
   gem 'capybara'
   gem 'database_cleaner'
-  gem 'factory_girl', '~> 4.9'
 end
 
 group :development do

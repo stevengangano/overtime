@@ -1,0 +1,71 @@
+<div class='container-fluid'>
+	<div class='pending-homepage row'>
+		<h2>Items Pending Your Approval</h2>
+		<hr>
+		
+
+		<% @pending_approvals.each do |pending_approval| %>
+			<div class='homepage-block col-md-3'>
+				<h4>
+					<%= pending_approval.user.full_name %>
+				</h4>
+
+				<p>
+					<span class='pending-details'>Date Submitted:</span> <%= pending_approval.date %>
+				</p>
+
+				<p>
+					<span class='pending-details'>Rationale:</span> <%= truncate pending_approval.rationale, length: 42 %>
+				</p>
+
+				<div class='row'>
+					<div class='col-md-6 column'>
+						<%= link_to 'Approve', approve_post_path(pending_approval), class: 'btn btn-success btn-block', id: 'approve_#{pending_approval}' %>
+					</div>
+					<div class='col-md-6 column'>
+						<%= link_to 'Review', edit_post_path(pending_approval), class: 'btn btn-warning btn-block' %>
+					</div>
+				</div>
+			</div>
+		<% end %>
+
+	</div>
+
+
+	<div class='pending-homepage row'>
+		<h2>Confirmation Log</h2>
+		<hr>
+		
+
+		<% @recent_audit_items.each do |recent_audit_item| %>
+			<div class='homepage-block col-md-3'>
+				<h4>
+					<%= recent_audit_item.user.full_name %>
+				</h4>
+
+				<p>
+					<span class='pending-details'>Week Starting:</span> <%= recent_audit_item.start_date %>
+				</p>
+
+				<p>
+					<span class='pending-details'>End Date:</span> <%= recent_audit_item.end_date || status_label('pending')%>
+				</p>
+
+				<p>
+					<span class='pending-details'>Status:</span> <%= status_label recent_audit_item.status %>
+				</p>				
+			</div>
+		<% end %>
+
+	</div>
+
+
+
+
+
+	<div class='pending-homepage'>
+		<div>
+			<p>asdf</p>
+		</div>
+	</div>
+</div>

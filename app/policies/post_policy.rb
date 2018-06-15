@@ -7,6 +7,10 @@ class PostPolicy < ApplicationPolicy
 		return true if user_or_admin && !post_approved?
 	end
 
+	def approve?
+		admin?
+	end
+
 	private
 
 	#Post creator is equal to current user or admin

@@ -20,13 +20,18 @@
 	</thead>
 	<tbody>
 		<% @audit_logs.each do |al| %>
-		<tr>
-			<td><%= al.id %></td>
-			<td><%= al.user.full_name %></td>
-			<td><%= al.start_date %></td>
-			<td><%= al.end_date %></td>
-			<td><%= al.status %></td>
-		</tr>
+			<tr>
+				<td><%= al.id %></td>
+				<td><%= al.user.full_name %></td>
+				<td><%= al.start_date %></td>
+				<td><%= al.end_date %></td>
+				<td><%= status_label al.status %></td>
+			</tr>
 		<% end %>
 	</tbody>
 </table>
+
+<div class="text-center">
+	<%= paginate @audit_logs %>
+</div>
+

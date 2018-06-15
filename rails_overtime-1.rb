@@ -2066,25 +2066,819 @@ Building the auditlog index page
 
 
 6) Create an enum for 'status'. Go to models/audit_log.rb:
+  
+  class AuditLog < ActiveRecord::Base
+    belongs_to :user
+    #ADD THIS HERE
+    enum status: { pending: 0, confirmed: 1 }
+
+    validates_presence_of :user_id, :status, :start_date
+
+      after_initialize :set_defaults
+
+    private
+
+    def set_defaults
+      self.start_date ||= Date.today - 6.days
+    end
+
+  end
 
 
+7) Go to helpers/application_helper.rb. Add styling to status for pending and confirmed:
+
+   #Color code status for 'time entries' tab and 'audit log' tab
+    module ApplicationHelper
+     
+      def active?(path)
+        "active" if current_page?(path)
+      end
+
+      def status_label status
+        status_span_generator status
+      end
+
+      private
+
+      def status_span_generator status
+        case status
+        when 'submitted'
+          content_tag(:span, status.titleize, class: 'label label-primary')
+        when 'approved'
+          content_tag(:span, status.titleize, class: 'label label-success')
+        when 'rejected'
+          content_tag(:span, status.titleize, class: 'label label-danger')
+        when 'pending'
+          content_tag(:span, status.titleize, class: 'label label-primary')
+        when 'confirmed'
+          content_tag(:span, status.titleize, class: 'label label-success')
+        end
+      end
+
+    end
 
 
+Adding Kaminari to limit page results
+
+1) Go to posts.controller.rb:
+
+  def index
+    @posts = current_user.posts.page(params[:page]).per(10)
+  end
 
 
+2) Add to views/posts/index.html.erb:
+
+  
+  <div class="text-center">
+    <%= paginate @posts %>
+  </div>
 
 
+3) Styling "<%= paginate @posts %>"
+
+rails generate kaminari:views bootstrap3
+
+Other options:
+
+bootstrap2
+bourbon
+foundation
+github
+google
+materialize
+purecss
+semantic_ui
 
 
+Making AJAX calls with pagination (does not refresh browser):
+
+1) Create assets/javascipts/pagination.js:
+
+#Note: Dont need to require in application.js because 
+#'//= require_tree .' includes everything in assets/javascript folder
 
 
+(function($) {
+  // Make sure that every Ajax request sends the CSRF token
+  function CSRFProtection(xhr) {
+    var token = $('meta[name="csrf-token"]').attr('content');
+    if (token) xhr.setRequestHeader('X-CSRF-Token', token);
+  }
+  if ('ajaxPrefilter' in $) $.ajaxPrefilter(function(options, originalOptions, xhr){ CSRFProtection(xhr) });
+  else $(document).ajaxSend(function(e, xhr){ CSRFProtection(xhr) });
+
+  // Triggers an event on an element and returns the event result
+  function fire(obj, name, data) {
+    var event = new $.Event(name);
+    obj.trigger(event, data);
+    return event.result !== false;
+  }
+
+  // Submits "remote" forms and links with ajax
+  function handleRemote(element) {
+    var method, url, data,
+      dataType = element.attr('data-type') || ($.ajaxSettings && $.ajaxSettings.dataType);
+
+    if (element.is('form')) {
+      method = element.attr('method');
+      url = element.attr('action');
+      data = element.serializeArray();
+      // memoized value from clicked submit button
+      var button = element.data('ujs:submit-button');
+      if (button) {
+        data.push(button);
+        element.data('ujs:submit-button', null);
+      }
+    } else {
+      method = element.attr('data-method');
+      url = element.attr('href');
+      data = null;
+    }
+
+    $.ajax({
+      url: url, type: method || 'GET', data: data, dataType: dataType,
+      // stopping the "ajax:beforeSend" event will cancel the ajax request
+      beforeSend: function(xhr, settings) {
+        if (settings.dataType === undefined) {
+          xhr.setRequestHeader('accept', '*/*;q=0.5, ' + settings.accepts.script);
+        }
+        return fire(element, 'ajax:beforeSend', [xhr, settings]);
+      },
+      success: function(data, status, xhr) {
+        element.trigger('ajax:success', [data, status, xhr]);
+      },
+      complete: function(xhr, status) {
+        element.trigger('ajax:complete', [xhr, status]);
+      },
+      error: function(xhr, status, error) {
+        element.trigger('ajax:error', [xhr, status, error]);
+      }
+    });
+  }
+
+  // Handles "data-method" on links such as:
+  // <a href="/users/5" data-method="delete" rel="nofollow" data-confirm="Are you sure?">Delete</a>
+  function handleMethod(link) {
+    var href = link.attr('href'),
+      method = link.attr('data-method'),
+      csrf_token = $('meta[name=csrf-token]').attr('content'),
+      csrf_param = $('meta[name=csrf-param]').attr('content'),
+      form = $('<form method="post" action="' + href + '"></form>'),
+      metadata_input = '<input name="_method" value="' + method + '" type="hidden" />';
+
+    if (csrf_param !== undefined && csrf_token !== undefined) {
+      metadata_input += '<input name="' + csrf_param + '" value="' + csrf_token + '" type="hidden" />';
+    }
+
+    form.hide().append(metadata_input).appendTo('body');
+    form.submit();
+  }
+
+  function disableFormElements(form) {
+    form.find('input[data-disable-with]').each(function() {
+      var input = $(this);
+      input.data('ujs:enable-with', input.val())
+        .val(input.attr('data-disable-with'))
+        .attr('disabled', 'disabled');
+    });
+  }
+
+  function enableFormElements(form) {
+    form.find('input[data-disable-with]').each(function() {
+      var input = $(this);
+      input.val(input.data('ujs:enable-with')).removeAttr('disabled');
+    });
+  }
+
+  function allowAction(element) {
+    var message = element.attr('data-confirm');
+    return !message || (fire(element, 'confirm') && confirm(message));
+  }
+
+  function requiredValuesMissing(form) {
+    var missing = false;
+    form.find('input[name][required]').each(function() {
+      if (!$(this).val()) missing = true;
+    });
+    return missing;
+  }
+
+  $('a[data-confirm], a[data-method], a[data-remote]').live('click.rails', function(e) {
+    var link = $(this);
+    if (!allowAction(link)) return false;
+
+    if (link.attr('data-remote') != undefined) {
+      handleRemote(link);
+      return false;
+    } else if (link.attr('data-method')) {
+      handleMethod(link);
+      return false;
+    }
+  });
+
+  $('form').live('submit.rails', function(e) {
+    var form = $(this), remote = form.attr('data-remote') != undefined;
+    if (!allowAction(form)) return false;
+
+    // skip other logic when required values are missing
+    if (requiredValuesMissing(form)) return !remote;
+
+    if (remote) {
+      handleRemote(form);
+      return false;
+    } else {
+      // slight timeout so that the submit button gets properly serialized
+      setTimeout(function(){ disableFormElements(form) }, 13);
+    }
+  });
+
+  $('form input[type=submit], form button[type=submit], form button:not([type])').live('click.rails', function() {
+    var button = $(this);
+    if (!allowAction(button)) return false;
+    // register the pressed submit button
+    var name = button.attr('name'), data = name ? {name:name, value:button.val()} : null;
+    button.closest('form').data('ujs:submit-button', data);
+  });
+
+  $('form').live('ajax:beforeSend.rails', function(event) {
+    if (this == event.target) disableFormElements($(this));
+  });
+
+  $('form').live('ajax:complete.rails', function(event) {
+    if (this == event.target) enableFormElements($(this));
+  });
+})( jQuery );
+
+2) Create views/posts/index.js.erb:
+
+  $('#posts').html('<%= escape_javascript render(@posts) %>');
+  $('#paginator').html('<%= escape_javascript(paginate(@posts, remote: true).to_s) %>');
 
 
+3) Go to index.html.erb:
+
+<h1>Posts</h1>
+
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>
+        #
+      </th>
+      <th>
+        Date
+      </th>
+      <th>
+        User
+      </th>
+      <th>
+        Rationale
+      </th>
+      <th>
+        Status
+      </th>     
+    </tr>
+  </thead>
+  #ADD THIS "POSTS"
+  <tbody id="posts">
+    #ADD THIS "NEEDS TO BE RENDERED LIKE THIS"
+    <%= render @posts %>
+  </tbody>
+</table>
+#ADD THIS "PAGINATOR"
+<div id="paginator" class="text-center">
+  #ADD THIS "REMOTE TRUE"
+  <%= paginate @posts, remote: true %>
+</div>
 
 
+Creating admin page and employee page for static/homepage.html.erb:
+
+1) Create partial static/_admin.html.erb:
+
+  <h1> This is the admin </h1>
 
 
+2) Create partial static/_employee.html.erb:
 
+  <h1> This is the employee </h1>
+
+
+3) Go to homepage.html.erb:
+
+  <% if admin_types.include?(current_user.try(:type)) %>
+    <%= render 'admin' %>
+  <% else %>
+    <%= render 'employee' %>
+  <% end >
+
+
+4) Go to application_helper.rb:
+
+  #You can add another type of admin in the array
+  def admin_types
+    ['AdminUser']
+  end
+
+Adding pending audit log seed data:
+
+1) Go seeds.rb:
+
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 10.days))
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 17.days))
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 24.days))
+
+Displaying 'submitted' on Admin page:
+
+1) Go to static_controller.rb:
+
+#ADD this. Displays only submitted.
+class StaticController < ApplicationController
+  def homepage
+    @pending_approvals = Post.where(status: 'submitted')
+  end
+
+end 
+
+
+2) Go to views/static/_admin.html.erb:
+
+<div class='container-fluid'>
+  <div class='pending-homepage row'>
+    <h2>Items Pending Your Approval</h2>
+    <hr>
+    
+
+    <% @pending_approvals.each do |pending_approval| %>
+      <div class='homepage-block col-md-3'>
+        <h4>
+          <%= pending_approval.user.full_name %>
+        </h4>
+
+        <p>
+          <span class='pending-details'>Date Submitted:</span> <%= pending_approval.date %>
+        </p>
+
+        <p>
+          <span class='pending-details'>Rationale:</span> <%= truncate pending_approval.rationale, length: 42 %>
+        </p>
+
+        <div class='row'>
+          <div class='col-md-6 column'>
+            <%= link_to 'Approve', root_path, class: 'btn btn-success btn-block' %>
+          </div>
+          <div class='col-md-6 column'>
+            <%= link_to 'Review', root_path, class: 'btn btn-warning btn-block' %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+  </div>
+
+  <div class='pending-homepage'>
+    <div>
+      <p>asdf</p>
+    </div>
+  </div>
+</div>
+
+3) Styling _admin.html.erb:
+
+  1) Create file stylesheets/admin_homepage.css
+
+  2) Add to application.css.scss:
+
+    @import "admin_homepage.css"
+
+  3) Add styles to admin_homepage.css:
+
+
+  .pending-homepage {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    background-color: #E3E3E3;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    padding: 20px;
+  }
+
+  .homepage-block {
+    background-color: #1D3C91;
+    color: white;
+    margin: 12px 42px 12px 42px;
+    padding: 15px;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+  }
+
+  .pending-details {
+    font-weight: 900;
+  }
+
+Getting the "Approve" button to work on Admin Page:
+
+
+1) Go to views/static/_admin.html.erb:
+
+  <div class='row'>
+    <div class='col-md-6 column'>
+      # Fix the route
+      <%= link_to 'Approve', approve_post_path(pending_approval), class: 'btn btn-success btn-block', id: 'approve_#{pending_approval}' %>
+    </div>
+    <div class='col-md-6 column'>
+      # Fix the route
+      <%= link_to 'Review', edit_post_path(pending_approval), class: 'btn btn-warning btn-block' %>
+    </div>
+  </div>
+
+
+2) Create a new route in routes.rb for the 'approve' button:
+
+  
+  resources :posts do 
+    member do
+      get :approve
+    end
+  end
+
+  Creates this route:
+
+  approve_post GET    /posts/:id/approve(.:format)          posts#approve
+
+
+3) Go to posts_controller.rb and add the new route:
+
+  def approve
+    authorize @post
+    #Changes the status to "approved"
+    @post.approved!
+    redirect_to root_path
+  end
+
+4) Preventing an employee from approving a post:
+
+  Example: Going to posts/15/approved. This approves a post.
+
+
+  1) Go to polices/post_policy.rb. Will only approve if admin.
+
+  class PostPolicy < ApplicationPolicy
+  #This only allows creator to edit their own post
+  def update?
+    #Update post if admin is logged in and approves the post
+    return true if admin? && post_approved?
+    #Update post if post creator or admin and post is not approved
+    return true if user_or_admin && !post_approved?
+  end
+
+  #ADD THIS
+  def approve?
+    admin?
+  end
+
+  private
+
+  #Post creator is equal to current user or admin
+  def user_or_admin
+    record.user.id == user.id || admin?
+  end
+
+  #Admin type is AdminUser
+  def admin?
+    user.type == 'AdminUser'
+  end
+
+  #Admin submitted timecard as approved
+  def post_approved?
+    record.approved?
+  end
+end
+
+
+2) Go to posts_controller.rb:
+
+def approve
+  #ADD THIS
+  authorize @post
+  @post.approved!
+  redirect_to root_path
+end
+
+
+Adding audit log to static/homepage.html.erb:
+
+1) Go static_controller.rb:
+
+class StaticController < ApplicationController
+  def homepage
+    @pending_approvals = Post.where(status: 'submitted')
+    @recent_audit_items = AuditLog.all
+  end
+end
+
+
+2) Display "@recent_audit_items.each":
+
+<div class='container-fluid'>
+  <div class='pending-homepage row'>
+    <h2>Items Pending Your Approval</h2>
+    <hr>
+    
+
+    <% @pending_approvals.each do |pending_approval| %>
+      <div class='homepage-block col-md-3'>
+        <h4>
+          <%= pending_approval.user.full_name %>
+        </h4>
+
+        <p>
+          <span class='pending-details'>Date Submitted:</span> <%= pending_approval.date %>
+        </p>
+
+        <p>
+          <span class='pending-details'>Rationale:</span> <%= truncate pending_approval.rationale, length: 42 %>
+        </p>
+
+        <div class='row'>
+          <div class='col-md-6 column'>
+            <%= link_to 'Approve', approve_post_path(pending_approval), class: 'btn btn-success btn-block', id: 'approve_#{pending_approval}' %>
+          </div>
+          <div class='col-md-6 column'>
+            <%= link_to 'Review', edit_post_path(pending_approval), class: 'btn btn-warning btn-block' %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+  </div>
+
+  #ADD THIS
+  <div class='pending-homepage row'>
+    <h2>Confirmation Log</h2>
+    <hr>
+    
+    <% @recent_audit_items.each do |recent_audit_item| %>
+      <div class='homepage-block col-md-3'>
+        <h4>
+          <%= recent_audit_item.user.full_name %>
+        </h4>
+
+        <p>
+          <span class='pending-details'>Week Starting:</span> <%= recent_audit_item.start_date %>
+        </p>
+
+        <p>
+          <span class='pending-details'>End Date:</span> <%= recent_audit_item.end_date || status_label('pending')%>
+        </p>
+
+        <p>
+          <span class='pending-details'>Status:</span> <%= status_label recent_audit_item.status %>
+        </p>        
+      </div>
+    <% end %>
+
+  </div>
+
+  <div class='pending-homepage'>
+    <div>
+      <p>asdf</p>
+    </div>
+  </div>
+</div>
+
+
+Setting up static/_employee.html.erb:
+
+1)
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-5 column jumbotron employee-blocks">
+      asdf
+    </div>
+    <div class="col-md-5 column jumbotron employee-blocks">
+      asdf
+    </div>
+  </div>
+</div>
+
+
+2) 
+
+@import "bootstrap-sprockets";
+@import "bootstrap";
+@import "posts.scss";
+@import "bourbon";
+@import "admin_homepage.css";
+#ADD THIS
+@import "employee_homepage.css"
+
+3)
+
+.employee-blocks {
+  margin-top: 45px;
+  margin-bottom: 45px;
+}
+
+
+Adding pending audit confirmation to static/employee.html.erb:
+
+1) Go to static_controller.rb:
+
+class StaticController < ApplicationController
+  def homepage
+    if current_user.type == 'AdminUser'
+      @pending_approvals = Post.submitted
+      #or @pending_approvals = Post.where(status: 'submitted')
+      @recent_audit_items = AuditLog.all
+    else
+      #ADD This
+      @pending_audit_confirmations = current_user.audit_logs
+  end
+end
+
+
+2) Go to static/employee.html.erb:
+
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-5 column jumbotron employee-blocks">
+      asdf
+    </div>
+    <div class="col-md-5 column jumbotron employee-blocks">
+      <h3> Pending your confirmation </h3>
+
+      <%= render partial: 'pending_audit_confirmations', locals: { pending_audit_confirmations: @pending_audit_confirmations }
+      %>
+
+    </div>
+  </div>
+</div>
+
+
+3) Create partial static/pending_audit_confirmations.html.erb:
+
+<% pending_audit_confirmations.each do |pending_audit_confirmation| %>
+  <%= link_to "I confirm that I did not perform any overtime for the week of: #{pending_audit_confirmation.start_date}", root_path, class:'btn btn-primary btn-block btn-lg', data: { confirm: 'Are you sure you want to confirm that you did not perform any overtime?' } %>
+<% end >
+
+
+Click Function for confirming EMPLOYEE did not do any overtime for the week:
+
+1) Create confirm action in Audit_log Controller (audit_logs/1/confirm):
+
+  #similar to show route
+  def confirm
+    #Grabs the ID for that particular Audit Log for that week
+    audit_log = AuditLog.find(params[:id])
+    #authorize is needed since 'def confirm?' is created in audit_log_policy
+    #this allows to go to the route 'AuditLog.find(params[:id])'
+    authorize audit_log
+    #changes status to confirmed
+    audit_log.confirmed!
+    #redirects to root_path
+    redirect_to root_path, notice: "Thank you, your confirmation has be successfully made"
+  end
+
+
+2) Create confirm route in routes.rb:
+
+  resources :audit_logs, except: [:new, :edit, :destroy] do
+    #ADD CONFRIM ROUTE IN AUDIT_LOGS
+    member do
+      get :confirm
+    end
+  end
+
+3) Change path to button path to => confirm_audit_log_path(pending_audit_confirmation)
+
+<% pending_audit_confirmations.each do |pending_audit_confirmation| %>
+  <%= link_to "I confirm that I did not perform any overtime for the week of: #{pending_audit_confirmation.start_date}", 
+  confirm_audit_log_path(pending_audit_confirmation), class:'btn btn-primary btn-block btn-lg', data: { confirm: 'Are you sure you want to confirm that you did not perform any overtime?' } %>
+<% end >
+
+4) Go to policies/audit_log_policy.rb:
+
+  #will 'authorize' if 
+  #Audit Log creator is equal to current user
+  def confirm?
+    record.user.id == user.id
+  end
+
+
+If there are "0" pending audit confirmations confirmation:
+
+1) Go to static/employee.html.erb:
+
+<div class="container-fluid">
+  <div class="row">
+    #ADD THIS
+    <% if @pending_audit_confirmations.count > 0 %>
+    <div class="col-md-12 column jumbotron employee-blocks">
+      <h3> Pending your confirmation </h3>
+      <%= render partial: 'pending_audit_confirmations', locals: { pending_audit_confirmations: @pending_audit_confirmations }
+      %>
+    </div>
+    <% end %>
+    #ADD THIS
+    #Create link to request overtime
+    <div class="col-md-5 column jumbotron employee-blocks">
+      <%= link_to "Request Overtime Approval", new_post_path, class: "btn btn-primary btn-block btn-large" %>
+    </div>
+  </div>
+</div>
+
+
+IF employee requests overtime it should remove 'pending your confirmation' for that week:
+
+1) Go models/post.rb:
+
+#This runs automatically
+after_save :update_audit_log
+
+private 
+  def update_audit_log
+    #grabs the current user's id
+    #grabs 7 days from the current date
+    audit_log = AuditLog.where(user_id: self.user_id, start_date: (self.date - 7.days..self.date)).last
+    #changes status to confirmed so it disappears from list of pending
+    audit_log.confirmed!
+  end
+
+Creating Mailer Functionality
+
+1) Go to console:
+
+  rails g mailer ManagerMailer
+
+      create  app/mailers/manager_mailer.rb
+      create  app/mailers/application_mailer.rb
+      invoke  erb
+      create    app/views/manager_mailer
+      create    app/views/layouts/mailer.text.erb
+      create    app/views/layouts/mailer.html.erb
+      invoke  rspec
+      create    spec/mailers/manager_mailer_spec.rb
+      create    spec/mailers/previews/manager_mailer_preview.rb
+
+2) Go to mailers/applicaton_mailer.rb:
+
+    class ApplicationMailer < ActionMailer::Base
+      def email manager
+        @manager = manager
+        mail(to: @manager.email, subject: 'Daily overtime request email')
+      end
+    end
+
+
+3) Create manager_mailer/email.text.erb ('email' must match callback in applicaton_mailer.rb):
+
+    Hi <%= @manager.full_name %>,
+
+    There are new overtime requests for you to review.
+
+    Please click this link to access them.
+
+    Link: <%= root_url %>
+
+    From mailer robot.
+
+4) config/environments/development.rb:
+
+    Rails.application.configure do
+      config.cache_classes = false
+      config.eager_load = false
+      config.consider_all_requests_local       = true
+      config.action_controller.perform_caching = false
+      config.active_support.deprecation = :log
+      config.active_record.migration_error = :page_load
+      config.assets.debug = true
+      config.assets.digest = true
+      config.assets.raise_runtime_errors = true
+      config.action_mailer.perform_deliveries = true
+      config.action_mailer.raise_delivery_errors = true
+      config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+    end
+
+5) Type: rails c
+  
+#This grabs email of the last User
+ManagerMailer.email(AdminUser.last).deliver_later
+
+Displays in console:
+
+Hi GANGANO, STEVEN,
+
+There are new overtime requests for you to review.
+
+Please click this link link to access them.
+
+Link: http://localhost:3000/
 
 
 Installing Factory Girl for testing

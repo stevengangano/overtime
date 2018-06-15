@@ -12,6 +12,12 @@ AdminUser.create(email:'stevengangano@yahoo.com',
 				 last_name:'Gangano',
 				 phone: '4156500527')
 
+
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 10.days))
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 17.days))
+AuditLog.create!(user_id: @user.id, status: 0, start_date: (Date.today - 24.days))
+
+puts "3 audit logs hve been created"
 50.times do |post|
   Post.create!(date: Date.today, 
   			   rationale: "#{post} rationale content",
@@ -19,12 +25,12 @@ AdminUser.create(email:'stevengangano@yahoo.com',
    			   overtime_request: 2.5)
 end
 
-50.times do |audit_log|
-  AuditLog.create!(user_id: @user.id, 
-  				   status: 0, 
-  				   start_date: (Date.today - 6.days)
-  				)
-end
+# 50.times do |audit_log|
+#   AuditLog.create!(user_id: @user.id, 
+#   				   status: 0, 
+#   				   start_date: (Date.today - 6.days)
+#   				)
+# end
 
 puts "A hundred posts have been setup"
 

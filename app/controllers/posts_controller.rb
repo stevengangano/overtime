@@ -1,8 +1,14 @@
 class PostsController < ApplicationController
-  before_action :set_post, only: [:show, :edit, :update, :destroy]
+  before_action :set_post, only: [:show, :edit, :update, :destroy, :approve]
+
+  def approve 
+    authorize @post
+    @post.approved!
+    redirect_to root_path
+  end
 
   def index
-    @posts = Post.all
+    @posts = current_user.posts.page(params[:page]).per(10)
   end
 
   def new
