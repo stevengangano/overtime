@@ -2807,6 +2807,7 @@ private
     #grabs 7 days from the current date
     audit_log = AuditLog.where(user_id: self.user_id, start_date: (self.date - 7.days..self.date)).last
     #changes status to confirmed so it disappears from list of pending
+    #'if audit_log' is a nil guard. checks to see if audit_log exists
     audit_log.confirmed! if audit_log
   end
 
@@ -2945,6 +2946,104 @@ config.cache._classes = true
 => config.serve_static_assets = true
 config.assets.compile = true
 config.assets.digest = true
+
+
+Creating Scheduler with heroku
+
+1) heroku addons:create scheduler:standard
+2) Go to your heroku app on heroku.com
+3) Click scheduler
+4) Type: rake -T => displays rake tasks
+5) To add notification:manager_email type,
+   
+   rake notification:manager_email
+   rake notification:sms
+6)
+
+Creating an employee model instead user model
+
+1) touch app/models/employee.rb
+2) Type:
+
+   class Employee < User => inherits from user.rb
+
+   end
+3) Go to seeds.rb and change @user to @employee:
+
+@employee = Employee.create!(first_name:'John', 
+          last_name:'Doe',
+          email: 'johndoe@yahoo.com', 
+          password:'change123', 
+          password_confirmation: 'change123',
+          phone: '4156500527')
+
+AdminUser.create(email:'stevengangano@yahoo.com', 
+         password:'password', 
+         password_confirmation:'password', 
+         first_name:'Steven', 
+         last_name:'Gangano',
+         phone: '4156500527')
+
+
+AuditLog.create!(user_id: @employee.id, status: 0, start_date: (Date.today - 10.days))
+AuditLog.create!(user_id: @employee.id, status: 0, start_date: (Date.today - 17.days))
+AuditLog.create!(user_id: @employee.id, status: 0, start_date: (Date.today - 24.days))
+
+puts "3 audit logs hve been created"
+50.times do |post|
+  Post.create!(date: Date.today, 
+           rationale: "#{post} rationale content",
+           user_id: @employee.id, 
+           overtime_request: 2.5)
+end
+
+# 50.times do |audit_log|
+#   AuditLog.create!(user_id: @user.id, 
+#              status: 0, 
+#              start_date: (Date.today - 6.days)
+#           )
+# end
+
+puts "A hundred posts have been setup"
+
+4) Type: rails c
+
+  User.all => shows all Users (AdminUser and Employee)
+  User.find(1).type = "Employee"
+  Employee.all => johndoe@yahoo.com
+  AdminUser.all => stevengangano@yahoo.com
+
+Sending SMS message to all employees
+
+1) Go to lib/tasks/notification.rake:
+  
+namespace :notification do
+  desc "Sends SMS notificatioin to employees asking them to log if they had overtime or not"
+  task sms: :environment do
+    # if Time.now.friday?
+      employees = Employee.all
+      notification_message = "Please log into the overtime management dashboard to request overtime or confirm your hours for last week https://prac-overtime-app.herokuapp.com/"
+      
+      employees.each do |employee|
+        SmsTool.send_sms(number: employee.phone, message: notification_message)
+      end
+    # end
+    #1. Schedule to run at Sunday at 5pm
+    #2. Iterate over all employees
+    #3. Skip Admin/Users
+    #4. Send a message that has instructions and a link to log time 
+    # User.all.each do |user|
+    #   SmsTool.send_sms()
+    # end
+    # number: '555-555-3233'
+    # number: '5555553233'
+    #no spaces or dashes
+    #exactly 10 characters
+    #all characters have to be a number
+end
+
+2) Type: rake notification:sms
+
 
 
 
